@@ -6,6 +6,7 @@ A step-by-step guide to setting up and maintaining the **Prod** and **Dev** Sale
 
 ## Table of Contents
 
+- [Salesforce Background — What We Set Up and Why](#salesforce-background--what-we-set-up-and-why)
 - [Architecture Overview](#architecture-overview)
 - [Prerequisites](#prerequisites)
 - [One-Time Setup](#one-time-setup)
@@ -16,6 +17,149 @@ A step-by-step guide to setting up and maintaining the **Prod** and **Dev** Sale
 - [Accessing the Environments](#accessing-the-environments)
 - [Renewal — When Scratch Orgs Expire](#renewal--when-scratch-orgs-expire)
 - [Troubleshooting](#troubleshooting)
+
+---
+
+## Salesforce Background — What We Set Up and Why
+
+This section explains the Salesforce concepts behind our setup, what alternatives exist, and why we made the choices we did.
+
+---
+
+### What Type of App Is This?
+
+The E-Bikes app is built on two Salesforce technologies:
+
+| Technology | What It Is | What We Use It For |
+|---|---|---|
+| **Lightning Web Components (LWC)** | Salesforce's modern UI framework (similar to React) | Product cards, filters, order builder UI |
+| **Experience Cloud** (formerly Communities) | Salesforce feature for building public-facing websites/portals | The E-Bikes storefront site that customers see |
+
+The app is **source-driven** — all code lives in Git and gets deployed to Salesforce via CLI. Nothing is built by clicking in the Salesforce UI.
+
+---
+
+### Salesforce Org Types — What They Are and What We Use
+
+A **Salesforce org** is an instance of Salesforce — like a database + server + UI all in one. There are several types:
+
+| Org Type | What It Is | Licensing | Lifespan | Our Usage |
+|---|---|---|---|---|
+| **Production Org** | Live customer-facing org | Paid (varies by edition) | Permanent | Not used |
+| **Developer Edition** | Free full-featured org for developers | Free (limited capacity) | Permanent | Used as **Dev Hub** |
+| **Sandbox** | Clone of a production org for testing | Included with Enterprise/Unlimited paid plans | Permanent | Not available to us |
+| **Scratch Org** | Lightweight, disposable org created from config | Free (requires Dev Hub) | Max 30 days | Used for **Prod** and **Dev** environments |
+
+#### What We Have
+
+```
+Developer Edition Org  ←  This is our Dev Hub (control center)
+│   URL: orgfarm-03e5c5577c-dev-ed.develop.my.salesforce.com
+│   Alias: ebikes-org
+│   Lifespan: Permanent (free forever)
+│
+├── Scratch Org: ebikes        ←  Prod environment
+│     Alias: ebikes
+│     Lifespan: 30 days (recreate when expired)
+│
+└── Scratch Org: ebikes-dev   ←  Dev environment
+      Alias: ebikes-dev
+      Lifespan: 30 days (recreate when expired)
+```
+
+#### Why Scratch Orgs Instead of Sandboxes?
+
+| | Scratch Org | Sandbox |
+|---|---|---|
+| **Cost** | Free | Requires Enterprise/Unlimited license (~$150+/user/month) |
+| **Created from** | A JSON config file in Git | A snapshot of your production org |
+| **CI/CD friendly** | Yes — scripted creation | Partial support |
+| **Lifespan** | Max 30 days | Permanent |
+| **Good for** | Dev/test environments, demos | UAT, staging, production-like testing |
+
+We chose scratch orgs because they are **free**, **fully scriptable**, and sufficient for our use case (development and demos). If the team ever moves to a paid Salesforce plan, sandboxes would be the preferred long-term option.
+
+---
+
+### What Is a Dev Hub?
+
+A **Dev Hub** is a Salesforce org that acts as the "parent" for all scratch orgs. You need one to create scratch orgs. In our setup:
+
+- **Dev Hub** = our Developer Edition org (`ebikes-org`)
+- All scratch orgs are created under this Dev Hub
+- The Dev Hub itself is **not** where the app runs — it's just the control center
+- Developer Edition orgs can create up to **6 scratch orgs at a time** (free limit)
+
+---
+
+### What Is Experience Cloud?
+
+**Experience Cloud** (formerly called Communities, Portals, or Sites) is a Salesforce product that lets you build externally-accessible websites powered by Salesforce data.
+
+Our E-Bikes app uses Experience Cloud to create a **public storefront** where anyone can browse bikes without logging in.
+
+| Feature | Details |
+|---|---|
+| **Site type** | ChatterNetworkPicasso (Aura-based Experience Cloud) |
+| **URL path** | `/ebikes` |
+| **Guest access** | Enabled — public can browse products without login |
+| **Framework** | Aura + LWC components |
+| **Licensing** | Included in Developer Edition and most paid Salesforce editions |
+
+#### Do You Need a License for Experience Cloud?
+
+| Scenario | License Required |
+|---|---|
+| Developer Edition org (our setup) | No — included free |
+| Enterprise Edition org | Yes — Experience Cloud add-on (~$2/login or $35/user/month) |
+| Unlimited Edition org | Included in base license |
+
+Since we're on a Developer Edition org, Experience Cloud is **free**.
+
+---
+
+### What Is the Salesforce CLI (`sf`)?
+
+The **Salesforce CLI** (`sf`) is the command-line tool used to interact with Salesforce orgs programmatically. It replaces the older `sfdx` tool (both names still work).
+
+We use it to:
+- Authenticate to orgs
+- Create scratch orgs
+- Deploy metadata (code, components, configs)
+- Import sample data
+- Publish Experience Cloud sites
+
+Install: `npm install -g @salesforce/cli`
+
+---
+
+### Alternative Deployment Options We Considered
+
+| Option | How It Works | Why We Didn't Use It |
+|---|---|---|
+| **Salesforce UI (point-and-click)** | Manually build components in Setup | Not version-controlled, not repeatable |
+| **Change Sets** | Package changes and deploy between orgs via UI | Manual, no Git integration |
+| **Ant Migration Tool** | Legacy XML-based deployment | Deprecated, replaced by SF CLI |
+| **Gearset / Copado** | Third-party DevOps tools for Salesforce | Paid tools ($300-$500+/user/month) |
+| **GitHub Actions + SF CLI (our choice)** | Push to Git → auto deploy via CLI | Free, automated, Git-native |
+
+---
+
+### Licensing Summary
+
+| Component | License Needed | Cost |
+|---|---|---|
+| Developer Edition org | None | Free |
+| Dev Hub capability | None (enabled in Dev Edition) | Free |
+| Scratch orgs (up to 6) | Dev Hub required | Free |
+| Experience Cloud site | None on Dev Edition | Free |
+| Salesforce CLI | None | Free |
+| GitHub Actions (2000 min/month) | GitHub free account | Free |
+| **Total for our setup** | | **$0** |
+
+> If the team scales to a paid Salesforce org (Enterprise/Unlimited), sandboxes become available and scratch orgs are still free. The GitHub Actions workflows work identically — just update the auth secrets.
+
+---
 
 ---
 
