@@ -22,10 +22,10 @@ jobs:
           rm /tmp/dev_auth_url.txt
 
       - name: Deploy Metadata
-        run: sf project deploy start --target-org ebikes-dev
+        run: sf project deploy start --target-org ebikes-dev --ignore-conflicts
 
       - name: Deploy Guest Profile Metadata
-        run: sf project deploy start --metadata-dir=guest-profile-metadata -w 10 --target-org ebikes-dev
+        run: sf project deploy start --metadata-dir=guest-profile-metadata -w 10 --target-org ebikes-dev --ignore-conflicts
 
       - name: Publish Experience Cloud Site
         run: sf community publish -n E-Bikes --target-org ebikes-dev
